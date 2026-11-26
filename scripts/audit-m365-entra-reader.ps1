@@ -28,8 +28,10 @@ param(
     [string]$UserPrincipalName,
 
     [switch]$IncludePurview,
+    [switch]$SkipGraph,
     [switch]$SkipExchange,
-    [switch]$SkipTeams
+    [switch]$SkipTeams,
+    [switch]$UseDeviceAuth
 )
 
 $ErrorActionPreference = "Continue"
@@ -66,6 +68,7 @@ function Invoke-SafeExport {
 # ==============================================================================
 # 1. MICROSOFT GRAPH (Entra ID, M365, SharePoint Settings, Intune, Secure Score)
 # ==============================================================================
+if (-not $SkipGraph) {
 Write-Host "`n[*] 1. Verbinde zu Microsoft Graph (Read-Only Scopes)..." -ForegroundColor Cyan
 $GraphScopes = @(
     "Directory.Read.All",
@@ -84,7 +87,11 @@ $GraphScopes = @(
 )
 
 try {
-    Connect-MgGraph -TenantId $TenantId -Scopes $GraphScopes -NoWelcome
+    if ($UseDeviceAuth) {
+        Connect-MgGraph -TenantId $TenantId -Scopes $GraphScopes -UseDeviceCode -NoWelcome
+    } else {
+        Connect-MgGraph -TenantId $TenantId -Scopes $GraphScopes -NoWelcome
+    }
 
     Invoke-SafeExport "01_tenant_organization" { Get-MgOrganization | Select-Object DisplayName, Id, OnPremisesSyncEnabled, OnPremisesLastSyncDateTime }
     Invoke-SafeExport "01_tenant_licenses" { Get-MgSubscribedSku | Select-Object SkuPartNumber, ConsumedUnits, @{N='Enabled';E={$_.PrepaidUnits.Enabled}} } "Csv"
@@ -142,14 +149,19 @@ try {
 } catch {
     Write-Warning "[!] Microsoft Graph Verbindung fehlgeschlagen: $($_.Exception.Message)"
 }
+}
 
 # ==============================================================================
 # 2. EXCHANGE ONLINE & DEFENDER FOR OFFICE 365
 # ==============================================================================
 if (-not $SkipExchange) {
-    Write-Host "`n[*] 2. Verbinde zu Exchange Online PowerShell..." -ForegroundColor Cyan
+    Write-Host "`n[*] 2. Verbinde zu Exchange Online (Linux/pwsh)..." -ForegroundColor Cyan
     try {
-        Connect-ExchangeOnline -UserPrincipalName $UserPrincipalName -ShowBanner:$false
+        if ($UseDeviceAuth) {
+            Connect-ExchangeOnline -Device -UserPrincipalName $UserPrincipalName -ShowBanner:$false
+        } else {
+            Connect-ExchangeOnline -UserPrincipalName $UserPrincipalName -ShowBanner:$false
+        }
 
         Invoke-SafeExport "04_exo_organization_config" { Get-OrganizationConfig | Select-Object OAuth2ClientProfileEnabled, AuditDisabled, MailTipsAllTipsEnabled, MailTipsExternalRecipientsTipsEnabled, CustomerLockboxEnabled, RejectDirectSend }
         Invoke-SafeExport "04_exo_transport_config" { Get-TransportConfig | Select-Object SmtpClientAuthenticationDisabled }
@@ -184,9 +196,13 @@ if (-not $SkipExchange) {
 # 3. MICROSOFT TEAMS
 # ==============================================================================
 if (-not $SkipTeams) {
-    Write-Host "`n[*] 3. Verbinde zu Microsoft Teams PowerShell..." -ForegroundColor Cyan
+    Write-Host "`n[*] 3. Verbinde zu Microsoft Teams (Linux/pwsh)..." -ForegroundColor Cyan
     try {
-        Connect-MicrosoftTeams -TenantId $TenantId | Out-Null
+        if ($UseDeviceAuth) {
+            Connect-MicrosoftTeams -UseDeviceAuthentication -TenantId $TenantId | Out-Null
+        } else {
+            Connect-MicrosoftTeams -TenantId $TenantId | Out-Null
+        }
 
         Invoke-SafeExport "05_teams_federation" { Get-CsTenantFederationConfiguration }
         Invoke-SafeExport "05_teams_client_config" { Get-CsTeamsClientConfiguration }
@@ -204,9 +220,13 @@ if (-not $SkipTeams) {
 # 4. OPTIONAL: MICROSOFT PURVIEW (Security & Compliance PowerShell)
 # ==============================================================================
 if ($IncludePurview) {
-    Write-Host "`n[*] 4. Verbinde zu Microsoft Purview (IPPSSession)..." -ForegroundColor Cyan
+    Write-Host "`n[*] 4. Verbinde zu Microsoft Purview (IPPSSession / Linux/pwsh)..." -ForegroundColor Cyan
     try {
-        Connect-IPPSSession -UserPrincipalName $UserPrincipalName -ShowBanner:$false
+        if ($UseDeviceAuth) {
+            Connect-IPPSSession -Device -UserPrincipalName $UserPrincipalName -ShowBanner:$false
+        } else {
+            Connect-IPPSSession -UserPrincipalName $UserPrincipalName -ShowBanner:$false
+        }
 
         Invoke-SafeExport "06_purview_dlp_policies" { Get-DlpCompliancePolicy | Select-Object Name, Enabled, Mode, ExchangeLocation, SharePointLocation, OneDriveLocation, TeamsLocation } "Csv"
         Invoke-SafeExport "06_purview_sensitivity_labels" { Get-Label | Select-Object DisplayName, Name, Disabled, Priority } "Csv"

@@ -5,9 +5,9 @@
 - **Microsoft Purview Portal:** `https://purview.microsoft.com`
 - **Microsoft Intune Admin Center:** `https://intune.microsoft.com`
 
-**Erforderliche Rollen & Grenzen:**
-- **Microsoft Purview:** Entra `Security Reader` + `Global Reader` geben Read-Only-Zugriff auf viele Compliance-Einstellungen (insb. via `Connect-IPPSSession` für DLP/Labels/Audit). **Achtung:** Einige Bereiche im Purview-Portal (z. B. *Content Search*, *eDiscovery*, *Audit Search* oder spezifische Purview-Rollen) setzen explizite **Purview-Rollengruppen** (z. B. *View-Only Audit Logs* oder *Compliance Data Administrator*) voraus.
-- **Microsoft Intune:** `Global Reader` kann im Intune Admin Center und über Microsoft Graph alle Compliance-, Konfigurations- und Enrollment-Richtlinien lesen ✅.
+**Erforderliche Rollen & Linux-CLI-Status:**
+- **Microsoft Intune:** **100 % nativ unter Linux via `az rest` / `m365` + `jq`** mit `Global Reader` ✅ *(kein PowerShell erforderlich!)*.
+- **Microsoft Purview:** Sensitivity Labels & Audit-Events lassen sich via **Linux CLI (`az rest` / `m365` auf Microsoft Graph)** abfragen; für **DLP-Policies, Unified-Audit-Schalter & Audit-Retention-Policies** existiert keine öffentliche Graph-REST-API → Abfrage unter Linux via **`pwsh` (`Connect-ExchangeOnline` / `Connect-IPPSSession`)** oder über die Purview-UI. *(Hinweis: Einzelne Purview-Bereiche erfordern ggf. explizite Purview-Rollengruppen zusätzlich zu `Security Reader` + `Global Reader`.)*
 
 ---
 
@@ -17,36 +17,56 @@
 Ohne aktiviertes **Microsoft 365 Unified Audit Log** existiert im Sicherheitsvorfall keinerlei Nachvollziehbarkeit, welche E-Mails gelesen, welche SharePoint-Dateien heruntergeladen oder welche Admin-Änderungen vorgenommen wurden. **DLP-Richtlinien** und **Sensitivity Labels** bilden die datenzentrierte Schutzschicht gegen Datenverlust und Fehlfreigaben.
 
 ### Soll-Zustand (CIS 3.1.x – 3.3.x / L1 & L2)
-- **Microsoft 365 Unified Audit Log:** Aktiviert (`UnifiedAuditLogIngestionEnabled = $true`) *(L1 – zwingend!)*.
-- **Audit Retention Policy:** Standard-Aufbewahrung (180 Tage) aktiv; bei E5/Purview Audit (Premium) mind. **1 Jahr** (besser länger nach Compliance-Vorgaben) für kritische Dienste *(L1/L2)*.
-- **Data Loss Prevention (DLP):** Aktive DLP-Richtlinien (im Modus `Enable`, nicht nur `TestWithNotifications`!) mindestens für **Exchange Online, SharePoint Online, OneDrive & Teams** *(L1/L2)*.
-- **Sensitivity Labels (Information Protection):** Definiert, veröffentlicht und idealerweise mit Standard-Labeling / Pflicht-Labeling sowie Verschlüsselung für „Vertraulich / Streng Vertraulich“ konfiguriert *(L2)*.
-- **Defender for Cloud Apps / Purview Audit Anbindung:** Aktiv, damit M365-Aktivitäten zentral korreliert werden *(L2)*.
+- **Microsoft 365 Unified Audit Log:** Aktiviert (`UnifiedAuditLogIngestionEnabled = true`) *(L1 – zwingend!)*.
+- **Audit Retention Policy:** Standard-Aufbewahrung (180 Tage) aktiv; bei E5/Purview Audit (Premium) mind. **1 Jahr** *(L1/L2)*.
+- **Data Loss Prevention (DLP):** Aktive DLP-Richtlinien (Modus `Enable`, nicht nur `TestWithNotifications`!) mindestens für **Exchange, SharePoint, OneDrive & Teams** *(L1/L2)*.
+- **Sensitivity Labels:** Definiert, publiziert und produktiv genutzt (idealerweise Default-/Pflicht-Labeling & Verschlüsselung für „Vertraulich“) *(L2)*.
 
 ### Prüfung via UI (Microsoft Purview Portal – `https://purview.microsoft.com`)
 1. **Audit:** `Purview Portal` → *Solutions → Audit* → prüfen, ob oben ein Banner „Start recording user and admin activity“ erscheint (falls ja = **NICHT aktiviert → Kritisches Finding!**). Unter *Audit retention policies* Aufbewahrungsfristen prüfen.
-2. **DLP:** *Solutions → Data Loss Prevention → Policies* → aktive Policies, Status (`On` vs. `Simulation`), abgedeckte Workloads (Exchange, SharePoint, OneDrive, Teams, Devices) prüfen.
-3. **Information Protection (Sensitivity Labels):** *Solutions → Information Protection → Labels* & *Label policies* (prüfen, ob Labels publiziert und produktiv genutzt werden).
-4. **Data Lifecycle Management:** *Solutions → Data Lifecycle Management → Retention policies* (Schutz vor versehentlichem/böswilligem Löschen).
+2. **DLP:** *Solutions → Data Loss Prevention → Policies* → Status (`On` vs. `Simulation`) & abgedeckte Workloads prüfen.
+3. **Information Protection:** *Solutions → Information Protection → Labels* & *Label policies*.
+4. **Data Lifecycle Management:** *Solutions → Data Lifecycle Management → Retention policies*.
 
-### Prüfung via CLI / PowerShell (Exchange Online & Security & Compliance PowerShell)
+### Prüfung via Linux CLI
 
-```powershell
-# 1. Unified Audit Log Status prüfen (Exchange Online PowerShell)
-Get-AdminAuditLogConfig | Select-Object UnifiedAuditLogIngestionEnabled, AdminAuditLogEnabled, AdminAuditLogAgeLimit | Format-List
+```bash
+# 1. Sensitivity Labels nativ via Linux CLI (Microsoft Graph REST!)
+#    (Bei 403 mit az rest -> 'm365 request --url ... --output json' nutzen)
+az rest --method GET \
+  --url "https://graph.microsoft.com/beta/security/informationProtection/sensitivityLabels" -o json \
+| jq -r '
+  ["Name","Description","Active"],
+  (.value[] | [.name, (.description // "-"), (.isActive | tostring)]) | @tsv
+' | column -t -s $'\t'
 
-# 2. Security & Compliance PowerShell (Purview) verbinden
-Connect-IPPSSession -UserPrincipalName "auditor@kunde.de"
+# 2. Prüfen, ob aktuelle Audit-Logs in Entra / M365 ankommen (Linux CLI)
+az rest --method GET \
+  --url "https://graph.microsoft.com/v1.0/auditLogs/directoryAudits?\$top=5" \
+  --query "value[].{Time:activityDateTime, Activity:activityDisplayName, Category:category}" -o table
+```
 
-# 3. DLP Policies & Status prüfen
-Get-DlpCompliancePolicy | Select-Object Name, Enabled, Mode, ExchangeLocation, SharePointLocation, OneDriveLocation, TeamsLocation | Format-Table -AutoSize
+```bash
+# 3. Unified Audit Log Status, DLP Policies & Audit Retention Policies
+#    [Microsoft-Limit: keine Graph-REST-API -> Aufruf direkt aus Linux-Bash über pwsh:]
+pwsh -NoLogo -Command '
+  # Unified Audit Log Status (Exchange Online)
+  Connect-ExchangeOnline -Device -UserPrincipalName "auditor@kunde.de" -ShowBanner:$false
+  Write-Host "`n=== Unified Audit Log Config ==="
+  Get-AdminAuditLogConfig | Select-Object UnifiedAuditLogIngestionEnabled, AdminAuditLogEnabled, AdminAuditLogAgeLimit | Format-List
+  Disconnect-ExchangeOnline -Confirm:$false
 
-# 4. Sensitivity Labels & Label Policies prüfen
-Get-Label | Select-Object DisplayName, Name, Disabled, Priority, ContentType | Format-Table -AutoSize
-Get-LabelPolicy | Select-Object Name, Enabled, Mode, Labels | Format-Table -AutoSize
-
-# 5. Audit Retention Policies prüfen (bei Audit Premium / E5)
-Get-UnifiedAuditLogRetentionPolicy | Select-Object Name, Priority, RecordTypes, RetentionDuration, Enabled | Format-Table -AutoSize
+  # Purview DLP, Labels & Audit Retention (Security & Compliance)
+  Connect-IPPSSession -Device -UserPrincipalName "auditor@kunde.de" -ShowBanner:$false
+  Write-Host "=== DLP Policies ==="
+  Get-DlpCompliancePolicy | Select-Object Name, Enabled, Mode, ExchangeLocation, SharePointLocation, OneDriveLocation, TeamsLocation | Format-Table -AutoSize
+  Write-Host "=== Sensitivity Labels & Policies ==="
+  Get-Label | Select-Object DisplayName, Name, Disabled, Priority | Format-Table -AutoSize
+  Get-LabelPolicy | Select-Object Name, Enabled, Mode | Format-Table -AutoSize
+  Write-Host "=== Audit Retention Policies ==="
+  Get-UnifiedAuditLogRetentionPolicy | Select-Object Name, Priority, RecordTypes, RetentionDuration, Enabled | Format-Table -AutoSize
+  Disconnect-ExchangeOnline -Confirm:$false
+'
 ```
 
 ---
@@ -57,47 +77,62 @@ Get-UnifiedAuditLogRetentionPolicy | Select-Object Name, Priority, RecordTypes, 
 Conditional Access kann nur dann wirksam „nur vertrauenswürdige, konforme Geräte“ erzwingen, wenn Intune **Geräte ohne zugewiesene Compliance-Richtlinie standardmäßig als „Non-compliant“** markiert und das Einschreiben privater (BYOD) oder manipulierter Endgeräte kontrolliert wird.
 
 ### Soll-Zustand (CIS 4.1 – 4.2 & Best Practice / L1 & L2)
-- **Mark devices with no compliance policy assigned as:** **Not compliant** *(CIS L1 – kritische Standard-Falle: Default ist „Compliant“!)*.
-- **Device Enrollment Restrictions:** Persönliche (BYOD) Geräte für Windows/macOS (und je nach Strategie iOS/Android) im Enrollment blockiert, um unkontrollierte Privatgeräte aus dem Unternehmensnetz fernzuhalten *(L1/L2)*.
-- **Device Compliance Policies:** Für alle genutzten Plattformen (Windows, macOS, iOS, Android) aktiv:
-  - Festplattenverschlüsselung (BitLocker / FileVault) gefordert.
-  - Firewall & Antivirus (Defender for Endpoint) aktiv & gesund.
-  - OS-Mindestversion definiert (keine EOL-Betriebssysteme!).
-  - Jailbreak-/Root-Erkennung aktiviert (Mobile).
-- **App Protection Policies (MAM):** Für BYOD-Zugriffe auf M365-Apps (Outlook, Teams, OneDrive) konfiguriert (PIN, kein Copy/Paste in private Apps, verschlüsselte App-Daten).
-- **Entra Device Settings (Cross-Check in Entra Portal):**
-  - *Require Multi-Factor Authentication to register or join devices with Microsoft Entra* = **Yes** *(CIS 5.1.4.x / L1)*.
-  - *Maximum number of devices per user* begrenzt (z. B. 5–20 statt unbegrenzt) *(L2)*.
-  - *Local administrator settings on Microsoft Entra joined devices* restriktiv (nicht jeder Standard-User als lokaler Admin!).
+- **Mark devices with no compliance policy assigned as:** **Not compliant** (`secureByDefault == true`) *(CIS L1 – kritische Standard-Falle: Default ist „Compliant“!)*.
+- **Device Enrollment Restrictions:** Persönliche (BYOD) Geräte für Windows/macOS (und je nach Strategie iOS/Android) im Enrollment blockiert *(L1/L2)*.
+- **Device Compliance Policies:** Für alle genutzten Plattformen aktiv (BitLocker/FileVault, Firewall, Defender for Endpoint, OS-Mindestversion, Jailbreak-/Root-Erkennung).
+- **App Protection Policies (MAM):** Für BYOD-Zugriffe auf M365-Apps konfiguriert.
+- **Entra Device Settings (Cross-Check):**
+  - *Require MFA to register or join devices* = **Yes** *(CIS 5.1.4.x / L1)*.
+  - *Maximum number of devices per user* begrenzt *(L2)*.
 
 ### Prüfung via UI (Intune Admin Center – `https://intune.microsoft.com`)
-1. **Compliance Policy Settings (CIS-Pflichtcheck!):** `Intune Admin Center` → *Devices → Compliance → Compliance policy settings* → prüfen: **Mark devices with no compliance policy assigned as = Not compliant**.
-2. **Compliance Policies:** *Devices → Compliance → Policies* → Plattform-Abdeckung und Einstellungen prüfen.
-3. **Enrollment Restrictions:** *Devices → Enroll devices → Enrollment device platform restrictions* → Spalte **Personally owned** (Allow vs. Block) pro Plattform prüfen.
+1. **Compliance Policy Settings (CIS-Pflichtcheck!):** `Intune Admin Center` → *Devices → Compliance → Compliance policy settings* → **Mark devices with no compliance policy assigned as = Not compliant**.
+2. **Compliance Policies:** *Devices → Compliance → Policies*.
+3. **Enrollment Restrictions:** *Devices → Enroll devices → Enrollment device platform restrictions* → Spalte **Personally owned** prüfen.
 4. **App Protection Policies:** *Apps → Protection → App protection policies*.
 5. **Entra Device Settings:** `Entra Admin Center` (`entra.microsoft.com`) → *Identity → Devices → Overview → Device settings*.
 
-### Prüfung via CLI / PowerShell (Microsoft Graph – funktioniert mit `Global Reader`!)
+### Prüfung via Linux CLI (`az rest` / `m365` + `jq` – 100 % nativ unter Linux!)
 
-```powershell
-# 1. Intune Device Compliance Policies auflisten
-Get-MgDeviceManagementDeviceCompliancePolicy -All |
-    Select-Object DisplayName, Id, LastModifiedDateTime, '@odata.type' | Format-Table -AutoSize
+```bash
+# Hinweis: Falls az rest bei /deviceManagement/* ein 403 liefert, einfach 'm365 request --url ... --output json' verwenden!
 
-# 2. Compliance Settings: "Mark devices with no compliance policy assigned as" (via Graph Beta / Settings)
-# SecureByDefault = $true bedeutet "Not compliant" (CIS SOLL!)
-Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/settings" |
-    Select-Object -ExpandProperty secureByDefault
+# 1. CIS-Pflichtcheck: "Mark devices with no compliance policy assigned as"
+#    secureByDefault == true  => "Not compliant" (CIS SOLL!)
+#    secureByDefault == false => "Compliant"     (FINDING!)
+az rest --method GET \
+  --url "https://graph.microsoft.com/beta/deviceManagement/settings" \
+  --query "{SecureByDefault_NotCompliant:secureByDefault, DeviceComplianceCheckinThresholdDays:deviceComplianceCheckinThresholdDays}" -o table
 
-# 3. Übersicht verwalteter Geräte & Compliance-Zustand
-Get-MgDeviceManagementManagedDevice -All | Group-Object ComplianceState | Select-Object Name, Count
+# 2. Alle Intune Device Compliance Policies auflisten
+az rest --method GET \
+  --url "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies" \
+  --query "value[].{Name:displayName, Platform:\"@odata.type\", LastModified:lastModifiedDateTime}" -o table
 
-# 4. Enrollment Platform Restrictions prüfen
-Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceEnrollmentConfigurations" |
-    Select-Object -ExpandProperty value |
-    Select-Object displayName, '@odata.type', priority | Format-Table -AutoSize
+# 3. Compliance-Status aller verwalteten Geräte zusammenfassen (mit jq!)
+az rest --method GET \
+  --url "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?\$select=deviceName,operatingSystem,complianceState&\$top=999" -o json \
+| jq '.value | group_by(.complianceState) | map({state: .[0].complianceState, count: length})'
 
-# 5. Entra ID Device Registration Policy prüfen (MFA für Device Join)
-Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/policies/deviceRegistrationPolicy" |
-    ConvertTo-Json -Depth 5
+# 4. Device Enrollment Platform Restrictions prüfen (BYOD erlauben vs. blockieren)
+az rest --method GET \
+  --url "https://graph.microsoft.com/beta/deviceManagement/deviceEnrollmentConfigurations" -o json \
+| jq '.value[] | select(."@odata.type" | contains("PlatformRestrictions")) | {
+    name: .displayName,
+    priority: .priority,
+    windows: .windowsRestriction,
+    macOS: .macOSRestriction,
+    ios: .iosRestriction,
+    android: .androidRestriction
+  }'
+
+# 5. Entra ID Device Registration Policy prüfen (MFA für Device Join & max. Geräte/User)
+az rest --method GET \
+  --url "https://graph.microsoft.com/v1.0/policies/deviceRegistrationPolicy" -o json \
+| jq '{
+    multiFactorAuthConfiguration: .multiFactorAuthConfiguration,
+    userDeviceQuota: .userDeviceQuota,
+    azureADJoin: .azureADJoin.appliesTo,
+    azureADRegistration: .azureADRegistration.appliesTo
+  }'
 ```

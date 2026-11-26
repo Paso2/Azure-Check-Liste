@@ -47,66 +47,66 @@ Konkrete, technisch umsetzbare Schritte zur Behebung (UI-Pfad und/oder CLI/IaC-S
 - `SR-A` = Azure RBAC `Security Reader`
 - `R-A` = Azure RBAC `Reader` *(optional – ohne `R-A` über Defender for Cloud Assessments prüfen)*
 
-### A. Microsoft Entra ID *(Portal: `entra.microsoft.com`)*
+### A. Microsoft Entra ID *(Portal: `entra.microsoft.com` — 100 % Linux CLI via `az rest` / `m365`)*
 
-| Status | ID | Prüfpunkt | CIS-Ref / Level | Rolle | UI / CLI |
+| Status | ID | Prüfpunkt | CIS-Ref / Level | Rolle | UI / Linux CLI |
 | :---: | :--- | :--- | :--- | :--- | :--- |
-| [ ] | ENT-01 | Lizenzen, Domains & Hybrid-Sync-Status inventarisiert | Vorbereitung | `GR` | UI & Graph |
-| [ ] | ENT-02 | Security Defaults vs. Conditional Access Status (`On` statt `Report-only`) | M365 5.2.2 / L1 | `GR` | UI & Graph |
-| [ ] | ENT-03 | MFA für alle Admins (ideal Phishing-resistant) & alle User inkl. Gäste erzwungen | M365 5.2.2 / L1 | `GR` | UI & Graph |
-| [ ] | ENT-04 | Legacy Authentication per CA blockiert | M365 5.2.2 / L1 | `GR` | UI & Graph |
-| [ ] | ENT-05 | CA Policy Exclusions geprüft (nur Break-Glass / dokumentierte Ausnahmen) | M365 5.2.2 / L1 | `GR` | UI & Graph |
-| [ ] | ENT-06 | Sign-in Risk & User Risk Policies aktiv (bei Entra ID P2) | M365 5.2.2 / L1 | `GR` | UI & Graph |
-| [ ] | ENT-07 | Global Administrators: 2–4 Konten, Cloud-only, dediziert, keine produktive Lizenz | M365 1.1 & 5.1 / L1 | `GR` | UI & Graph |
+| [ ] | ENT-01 | Lizenzen, Domains & Hybrid-Sync-Status inventarisiert | Vorbereitung | `GR` | UI & `az rest` |
+| [ ] | ENT-02 | Security Defaults vs. Conditional Access Status (`On` statt `Report-only`) | M365 5.2.2 / L1 | `GR` | UI & `az rest`/`m365` |
+| [ ] | ENT-03 | MFA für alle Admins (ideal Phishing-resistant) & alle User inkl. Gäste erzwungen | M365 5.2.2 / L1 | `GR` | UI & `az rest`/`m365` |
+| [ ] | ENT-04 | Legacy Authentication per CA blockiert | M365 5.2.2 / L1 | `GR` | UI & `az rest`/`m365` |
+| [ ] | ENT-05 | CA Policy Exclusions geprüft (nur Break-Glass / dokumentierte Ausnahmen) | M365 5.2.2 / L1 | `GR` | UI & `az rest`/`m365` |
+| [ ] | ENT-06 | Sign-in Risk & User Risk Policies aktiv (bei Entra ID P2) | M365 5.2.2 / L1 | `GR` | UI & `az rest`/`m365` |
+| [ ] | ENT-07 | Global Administrators: 2–4 Konten, Cloud-only, dediziert, keine produktive Lizenz | M365 1.1 & 5.1 / L1 | `GR` | UI & `az rest` |
 | [ ] | ENT-08 | 2 Break-Glass-Konten vorhanden, FIDO2-geschützt & überwacht | M365 5.1 / L1 | `GR` | UI & Interview |
-| [ ] | ENT-09 | PIM aktiv für privilegierte Rollen (Eligible statt Active, MFA, Approval, Access Reviews) | M365 5.3 / L2 | `GR`/`SR-E` | UI & Graph |
-| [ ] | ENT-10 | Auth Methods Policy migriert, Number Matching aktiv, SMS/Voice deaktiviert | M365 5.2.3 / L1 | `GR` | UI & Graph |
-| [ ] | ENT-11 | MFA-Registrierungsquote (100 % Admins, alle aktiven Benutzer geprüft) | M365 5.2.3 / L1 | `GR` | UI & Graph |
-| [ ] | ENT-12 | Entra Password Protection (Smart Lockout & Custom Banned Passwords) | M365 5.2.3 / L1 | `GR` | UI & Graph |
-| [ ] | ENT-13 | Entra Admin Center für Standard-Benutzer gesperrt (`Restrict access`) | M365 5.1.3 / L1 | `GR` | UI & Graph |
-| [ ] | ENT-14 | App-Registrierungen durch Benutzer deaktiviert (`AllowedToCreateApps = false`) | M365 5.1.3 / L1 | `GR` | UI & Graph |
-| [ ] | ENT-15 | User Consent für Apps deaktiviert & Admin Consent Workflow aktiv | M365 5.1.5 / L1 | `GR` | UI & Graph |
-| [ ] | ENT-16 | Gastzugriff auf „Most restrictive“ & Invite nur für berechtigte Rollen | M365 5.1.6 / L1 | `GR` | UI & Graph |
-| [ ] | ENT-17 | High-Privilege Enterprise Apps & langlebige Client Secrets geprüft | M365 5.1.5 / L1 | `GR` | UI & Graph |
-| [ ] | ENT-18 | Risky Users / Risky Sign-ins geprüft (Identity Protection) | M365 5.2.4 / L1 | `SR-E` | UI & Graph |
+| [ ] | ENT-09 | PIM aktiv für privilegierte Rollen (Eligible statt Active, MFA, Approval, Access Reviews) | M365 5.3 / L2 | `GR`/`SR-E` | UI & `az rest`/`m365` |
+| [ ] | ENT-10 | Auth Methods Policy migriert, Number Matching aktiv, SMS/Voice deaktiviert | M365 5.2.3 / L1 | `GR` | UI & `az rest`/`m365` |
+| [ ] | ENT-11 | MFA-Registrierungsquote (100 % Admins, alle aktiven Benutzer geprüft) | M365 5.2.3 / L1 | `GR` | UI & `az rest`/`m365` |
+| [ ] | ENT-12 | Entra Password Protection (Smart Lockout & Custom Banned Passwords) | M365 5.2.3 / L1 | `GR` | UI & `az rest` |
+| [ ] | ENT-13 | Entra Admin Center für Standard-Benutzer gesperrt (`Restrict access`) | M365 5.1.3 / L1 | `GR` | UI & `az rest` |
+| [ ] | ENT-14 | App-Registrierungen durch Benutzer deaktiviert (`allowedToCreateApps = false`) | M365 5.1.3 / L1 | `GR` | UI & `az rest` |
+| [ ] | ENT-15 | User Consent für Apps deaktiviert & Admin Consent Workflow aktiv | M365 5.1.5 / L1 | `GR` | UI & `az rest` |
+| [ ] | ENT-16 | Gastzugriff auf „Most restrictive“ & Invite nur für berechtigte Rollen | M365 5.1.6 / L1 | `GR` | UI & `az rest` |
+| [ ] | ENT-17 | High-Privilege Enterprise Apps & langlebige Client Secrets geprüft | M365 5.1.5 / L1 | `GR` | UI & `az rest` |
+| [ ] | ENT-18 | Risky Users / Risky Sign-ins geprüft (Identity Protection) | M365 5.2.4 / L1 | `SR-E` | UI & `az rest`/`m365` |
 | [ ] | ENT-19 | Entra Diagnostic Settings (Audit-/Sign-in-Logs → Log Analytics/Sentinel) | M365 5.2.6 / L1 | `GR`+`SR-A` | UI & `az rest` |
 
 ### B. Microsoft 365 Admin, Exchange Online & Defender for Office 365
 
-| Status | ID | Prüfpunkt | CIS-Ref / Level | Portal | Rolle |
+| Status | ID | Prüfpunkt | CIS-Ref / Level | Portal | Linux CLI / Rolle |
 | :---: | :--- | :--- | :--- | :--- | :--- |
-| [ ] | M365-01 | Shared Mailboxes: Direkter Sign-In blockiert (`AccountEnabled = false`) | M365 1.2 / L1 | M365 Admin | `GR` |
-| [ ] | M365-02 | Public Microsoft 365 Groups auf unbeabsichtigte Freigaben geprüft | M365 1.2 / L2 | M365 Admin | `GR` |
-| [ ] | M365-03 | Passwort-Ablauf auf „Never expire“ (mit MFA & Password Protection) | M365 1.3 / L1 | M365 Admin | `GR` |
-| [ ] | M365-04 | Idle Session Timeout, Kalenderfreigabe, User-Owned Apps & Customer Lockbox | M365 1.3 / L1-L2 | M365 Admin | `GR` (UI) |
-| [ ] | EXO-01 | SPF, DKIM & DMARC (`p=quarantine`/`p=reject`) für alle Domains geprüft | M365 2.1 / L1 | Defender + DNS | `GR` + DNS |
-| [ ] | EXO-02 | Modern Auth aktiv, SMTP AUTH tenant-weit deaktiviert, Reject Direct Send | M365 6.5 / L1 | EAC / EXO PS | `GR` |
-| [ ] | EXO-03 | Externe automatische Weiterleitung deaktiviert (Remote Domain + Outbound Spam) | M365 6.2 / L1 | EAC / Defender | `GR` |
-| [ ] | EXO-04 | Transport Rules auf Spam-Bypass (`SCL -1`) & Weiterleitungen geprüft | M365 6.2 / L1 | EAC / EXO PS | `GR` |
-| [ ] | EXO-05 | External Email Tagging, MailTips, OWA Storage Providers & Outlook Add-ins | M365 6.3-6.5 / L1 | EAC / EXO PS | `GR` |
-| [ ] | EXO-06 | Organization & Mailbox Auditing aktiv, kein unerlaubter Audit Bypass | M365 6.1 / L1 | EAC / EXO PS | `GR` |
-| [ ] | MDO-01 | Microsoft Secure Score geprüft & Top-Empfehlungen dokumentiert | M365 2.x / L1 | Defender | `SR-E` |
-| [ ] | MDO-02 | Anti-Phishing (Impersonation, Mailbox Intelligence, Spoof, Threshold ≥ 2) | M365 2.1 / L1 | Defender | `SR-E` / `GR` |
-| [ ] | MDO-03 | Anti-Malware (Common Attachment Types Filter, ZAP, Admin Alerts) | M365 2.1 / L1 | Defender | `SR-E` / `GR` |
-| [ ] | MDO-04 | Anti-Spam & Connection Filter (keine breiten IP- oder Domain-Allowlists!) | M365 2.1 / L1 | Defender | `SR-E` / `GR` |
-| [ ] | MDO-05 | Safe Attachments (Mail + SPO/OneDrive/Teams) & Safe Links (Mail/Teams/Office) | M365 2.1 / L1 | Defender | `SR-E` / `GR` |
+| [ ] | M365-01 | Shared Mailboxes: Direkter Sign-In blockiert (`accountEnabled = false`) | M365 1.2 / L1 | M365 Admin | `az rest` (+ `pwsh`) / `GR` |
+| [ ] | M365-02 | Public Microsoft 365 Groups auf unbeabsichtigte Freigaben geprüft | M365 1.2 / L2 | M365 Admin | `az rest` / `GR` |
+| [ ] | M365-03 | Passwort-Ablauf auf „Never expire“ (mit MFA & Password Protection) | M365 1.3 / L1 | M365 Admin | `az rest` / `GR` |
+| [ ] | M365-04 | Idle Session Timeout, Kalenderfreigabe, User-Owned Apps & Customer Lockbox | M365 1.3 / L1-L2 | M365 Admin | `az rest` + UI + `pwsh` / `GR` |
+| [ ] | EXO-01 | SPF, DKIM & DMARC (`p=quarantine`/`p=reject`) für alle Domains geprüft | M365 2.1 / L1 | Defender + DNS | `az rest` + `dig` / `GR` |
+| [ ] | EXO-02 | Modern Auth aktiv, SMTP AUTH tenant-weit deaktiviert, Reject Direct Send | M365 6.5 / L1 | EAC | Linux `pwsh` (EXO) / `GR` |
+| [ ] | EXO-03 | Externe automatische Weiterleitung deaktiviert (Remote Domain + Outbound Spam) | M365 6.2 / L1 | EAC / Defender | Linux `pwsh` (EXO) / `GR` |
+| [ ] | EXO-04 | Transport Rules auf Spam-Bypass (`SCL -1`) & Weiterleitungen geprüft | M365 6.2 / L1 | EAC | Linux `pwsh` (EXO) / `GR` |
+| [ ] | EXO-05 | External Email Tagging, MailTips, OWA Storage Providers & Outlook Add-ins | M365 6.3-6.5 / L1 | EAC | Linux `pwsh` (EXO) / `GR` |
+| [ ] | EXO-06 | Organization & Mailbox Auditing aktiv, kein unerlaubter Audit Bypass | M365 6.1 / L1 | EAC | Linux `pwsh` (EXO) / `GR` |
+| [ ] | MDO-01 | Microsoft Secure Score geprüft & Top-Empfehlungen dokumentiert | M365 2.x / L1 | Defender | `az rest`/`m365` / `SR-E` |
+| [ ] | MDO-02 | Anti-Phishing (Impersonation, Mailbox Intelligence, Spoof, Threshold ≥ 2) | M365 2.1 / L1 | Defender | Linux `pwsh` (EXO) / `SR-E` |
+| [ ] | MDO-03 | Anti-Malware (Common Attachment Types Filter, ZAP, Admin Alerts) | M365 2.1 / L1 | Defender | Linux `pwsh` (EXO) / `SR-E` |
+| [ ] | MDO-04 | Anti-Spam & Connection Filter (keine breiten IP- oder Domain-Allowlists!) | M365 2.1 / L1 | Defender | Linux `pwsh` (EXO) / `SR-E` |
+| [ ] | MDO-05 | Safe Attachments (Mail + SPO/OneDrive/Teams) & Safe Links (Mail/Teams/Office) | M365 2.1 / L1 | Defender | Linux `pwsh` (EXO) / `SR-E` |
 
 ### C. SharePoint, OneDrive, Teams, Fabric, Purview & Intune
 
-| Status | ID | Prüfpunkt | CIS-Ref / Level | Portal | Rolle |
+| Status | ID | Prüfpunkt | CIS-Ref / Level | Portal | Linux CLI / Rolle |
 | :---: | :--- | :--- | :--- | :--- | :--- |
-| [ ] | SPO-01 | Externes Sharing (kein „Anyone“), Domain-Einschränkung, Gäste dürfen nicht weiter teilen | M365 7.2 / L1 | SharePoint | `GR` (UI/Graph) |
-| [ ] | SPO-02 | Default Sharing Link = Specific People / View, Ablaufdatum, Legacy Auth blockiert | M365 7.2-7.3 / L1 | SharePoint | `GR` (UI/Graph) |
-| [ ] | SPO-03 | Unmanaged Devices & OneDrive Sync auf verwaltete/domänengejointe Geräte begrenzt | M365 7.2-7.3 / L2 | SharePoint | `GR` (UI/Graph) |
-| [ ] | TMS-01 | Teams External Access: Unmanaged Teams Users & Skype Consumer blockiert, Federation eingeschränkt | M365 8.2 / L1 | Teams | `GR` |
-| [ ] | TMS-02 | Drittanbieter-Cloud-Speicher & Kanal-E-Mail-Integration deaktiviert | M365 8.1 / L1-L2 | Teams | `GR` |
-| [ ] | TMS-03 | Meeting Policies (Anonymous Join/Start, Lobby-Bypass, Externe Steuerung, Presenter) | M365 8.5 / L1-L2 | Teams | `GR` |
-| [ ] | TMS-04 | App Permission Policies (Drittanbieter-/Custom-Apps eingeschränkt) | M365 8.4 / L1 | Teams | `GR` |
-| [ ] | FAB-01 | Fabric / Power BI: „Publish to web“, Guest Access, External Sharing & Service Principals | M365 9.1 / L1 | Fabric | ⚠️ *(ggf. Interview)* |
-| [ ] | PRV-01 | Microsoft 365 Unified Audit Log aktiviert & Retention geprüft | M365 3.1 / L1 | Purview / EXO | `GR` / `SR-E` |
-| [ ] | PRV-02 | DLP-Policies & Sensitivity Labels aktiv geprüft | M365 3.2-3.3 / L1-L2 | Purview / IPPS | `SR-E` / `GR` |
-| [ ] | INT-01 | Intune: „Mark devices with no compliance policy assigned as“ = **Not compliant** | M365 4.1 / L1 | Intune | `GR` |
-| [ ] | INT-02 | Enrollment Restrictions (BYOD) & Compliance Policies (BitLocker, OS, Firewall) | M365 4.2 / L1-L2 | Intune | `GR` |
+| [ ] | SPO-01 | Externes Sharing (kein „Anyone“), Domain-Einschränkung, Gäste dürfen nicht weiter teilen | M365 7.2 / L1 | SharePoint | `az rest`/`m365` + UI / `GR` |
+| [ ] | SPO-02 | Default Sharing Link = Specific People / View, Ablaufdatum, Legacy Auth blockiert | M365 7.2-7.3 / L1 | SharePoint | `az rest`/`m365` + UI / `GR` |
+| [ ] | SPO-03 | Unmanaged Devices & OneDrive Sync auf verwaltete/domänengejointe Geräte begrenzt | M365 7.2-7.3 / L2 | SharePoint | `az rest`/`m365` + UI / `GR` |
+| [ ] | TMS-01 | Teams External Access: Unmanaged Teams Users & Skype Consumer blockiert, Federation eingeschränkt | M365 8.2 / L1 | Teams | Linux `pwsh` (Teams) / `GR` |
+| [ ] | TMS-02 | Drittanbieter-Cloud-Speicher & Kanal-E-Mail-Integration deaktiviert | M365 8.1 / L1-L2 | Teams | Linux `pwsh` (Teams) / `GR` |
+| [ ] | TMS-03 | Meeting Policies (Anonymous Join/Start, Lobby-Bypass, Externe Steuerung, Presenter) | M365 8.5 / L1-L2 | Teams | Linux `pwsh` (Teams) / `GR` |
+| [ ] | TMS-04 | App Permission Policies (Drittanbieter-/Custom-Apps eingeschränkt) | M365 8.4 / L1 | Teams | Linux `pwsh` (Teams) / `GR` |
+| [ ] | FAB-01 | Fabric / Power BI: „Publish to web“, Guest Access, External Sharing & Service Principals | M365 9.1 / L1 | Fabric | `curl` / ⚠️ Interview |
+| [ ] | PRV-01 | Microsoft 365 Unified Audit Log aktiviert & Retention geprüft | M365 3.1 / L1 | Purview | `az rest` + Linux `pwsh` / `GR` |
+| [ ] | PRV-02 | DLP-Policies & Sensitivity Labels aktiv geprüft | M365 3.2-3.3 / L1-L2 | Purview | `az rest` + Linux `pwsh` / `SR-E` |
+| [ ] | INT-01 | Intune: „Mark devices with no compliance policy assigned as“ = **Not compliant** | M365 4.1 / L1 | Intune | `az rest`/`m365` / `GR` |
+| [ ] | INT-02 | Enrollment Restrictions (BYOD) & Compliance Policies (BitLocker, OS, Firewall) | M365 4.2 / L1-L2 | Intune | `az rest`/`m365` / `GR` |
 
 ### D. Microsoft Azure Plattform *(Portal: `portal.azure.com`)*
 

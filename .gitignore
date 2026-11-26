@@ -1,6 +1,7 @@
 # Lokale Kunden-Evidenzen & Audit-Ausgaben NIEMALS committen!
 azure-audit-output_*/
 m365-audit-output_*/
+m365-linux-audit_*/
 evidence/
 maester-tests/
 ZeroTrust-Report/
