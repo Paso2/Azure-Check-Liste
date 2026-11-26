@@ -1,0 +1,14 @@
+# Lokale Kunden-Evidenzen & Audit-Ausgaben NIEMALS committen!
+azure-audit-output_*/
+m365-audit-output_*/
+evidence/
+maester-tests/
+ZeroTrust-Report/
+*-Report.html
+*.csv
+*.xlsx
+
+# OS & Editor Dateien
+.DS_Store
+Thumbs.db
+.vscode/

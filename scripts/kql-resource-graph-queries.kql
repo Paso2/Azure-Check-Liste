@@ -1,0 +1,158 @@
+// =============================================================================
+// Azure Resource Graph (KQL) Query-Sammlung für Azure Security Assessments
+// Nutzbar im Azure Portal -> "Resource Graph Explorer" oder via:
+//   az graph query -q "<QUERY>"
+// =============================================================================
+
+
+// =============================================================================
+// TEIL A: FUNKTIONIERT MIT REINEM AZURE 'SECURITY READER' (securityresources / policyresources)
+// =============================================================================
+
+// A1. Microsoft Defender for Cloud - Secure Score pro Subscription
+securityresources
+| where type == "microsoft.security/securescores"
+| project SubscriptionId=subscriptionId,
+          ScoreName=name,
+          CurrentScore=round(todouble(properties.score.current), 2),
+          MaxScore=todouble(properties.score.max),
+          Percentage=round(todouble(properties.score.percentage) * 100, 1)
+| order by Percentage asc
+
+// A2. Top Unhealthy Defender Recommendations (nach Schweregrad & Anzahl)
+securityresources
+| where type == "microsoft.security/assessments"
+| where properties.status.code == "Unhealthy"
+| summarize AffectedResources=count() by
+    Assessment=tostring(properties.displayName),
+    Severity=tostring(properties.metadata.severity),
+    Category=tostring(properties.metadata.categories[0])
+| order by Severity desc, AffectedResources desc
+
+// A3. Fehlgeschlagene CIS Benchmark Kontrollen (Regulatory Compliance)
+securityresources
+| where type == "microsoft.security/regulatorycompliancestandards/regulatorycompliancecontrols"
+| where id has "CIS" and properties.state == "Failed"
+| project SubscriptionId=subscriptionId,
+          Control=name,
+          Description=tostring(properties.description),
+          FailedResources=toint(properties.failedResources),
+          PassedResources=toint(properties.passedResources)
+| order by FailedResources desc
+
+// A4. Alle High-Severity Defender Assessments inkl. betroffener Ressource
+securityresources
+| where type == "microsoft.security/assessments"
+| where properties.status.code == "Unhealthy"
+| where properties.metadata.severity == "High"
+| project SubscriptionId=subscriptionId,
+          Assessment=tostring(properties.displayName),
+          ResourceId=tostring(properties.resourceDetails.Id),
+          Remediation=tostring(properties.metadata.remediationDescription)
+
+// A5. Azure Policy Non-Compliant Summary (funktioniert mit Security Reader!)
+policyresources
+| where type == "microsoft.policyinsights/policystates"
+| where properties.complianceState == "NonCompliant"
+| summarize NonCompliantCount=count() by
+    PolicyDefinition=tostring(properties.policyDefinitionName),
+    PolicyAssignment=tostring(properties.policyAssignmentName)
+| order by NonCompliantCount desc
+
+
+// =============================================================================
+// TEIL B: BENÖTIGT ZUSÄTZLICH AZURE RBAC 'READER' (resources)
+// =============================================================================
+
+// B1. Storage Accounts mit CIS-Abweichungen (Public Blob, HTTP, TLS < 1.2, Shared Key, Firewall)
+resources
+| where type =~ "microsoft.storage/storageaccounts"
+| where properties.allowBlobPublicAccess != false
+     or properties.supportsHttpsTrafficOnly != true
+     or properties.minimumTlsVersion != "TLS1_2"
+     or properties.allowSharedKeyAccess != false
+     or properties.networkAcls.defaultAction != "Deny"
+| project SubscriptionId=subscriptionId, ResourceGroup=resourceGroup, Name=name,
+          PublicBlob=properties.allowBlobPublicAccess,
+          HTTPSOnly=properties.supportsHttpsTrafficOnly,
+          MinTLS=properties.minimumTlsVersion,
+          SharedKey=properties.allowSharedKeyAccess,
+          NetDefault=properties.networkAcls.defaultAction,
+          PublicNet=properties.publicNetworkAccess
+
+// B2. Key Vaults ohne Purge Protection, ohne RBAC oder mit offenem Public Access
+resources
+| where type =~ "microsoft.keyvault/vaults"
+| where properties.enablePurgeProtection != true
+     or properties.enableRbacAuthorization != true
+     or properties.publicNetworkAccess != "Disabled"
+| project SubscriptionId=subscriptionId, ResourceGroup=resourceGroup, Name=name,
+          PurgeProtection=properties.enablePurgeProtection,
+          RBAC=properties.enableRbacAuthorization,
+          SoftDelete=properties.enableSoftDelete,
+          PublicNet=properties.publicNetworkAccess,
+          NetDefault=properties.networkAcls.defaultAction
+
+// B3. NSGs mit gefährlichen Inbound-Allow-Regeln aus dem Internet / Any
+resources
+| where type =~ "microsoft.network/networksecuritygroups"
+| mv-expand rule = properties.securityRules
+| where rule.properties.direction == "Inbound"
+    and rule.properties.access == "Allow"
+    and (rule.properties.sourceAddressPrefix in ("*", "0.0.0.0/0", "Internet", "<nw>/0"))
+| project SubscriptionId=subscriptionId, ResourceGroup=resourceGroup, NSG=name,
+          RuleName=rule.name,
+          Priority=rule.properties.priority,
+          Protocol=rule.properties.protocol,
+          Source=rule.properties.sourceAddressPrefix,
+          DestPort=coalesce(tostring(rule.properties.destinationPortRange), tostring(rule.properties.destinationPortRanges))
+| order by NSG asc, toint(Priority) asc
+
+// B4. Alle Public IP-Adressen (Inventar inkl. Basic-SKU Warnung)
+resources
+| where type =~ "microsoft.network/publicipaddresses"
+| project SubscriptionId=subscriptionId, ResourceGroup=resourceGroup, Name=name,
+          IP=properties.ipAddress,
+          SKU=sku.name,
+          AssociatedResource=properties.ipConfiguration.id
+
+// B5. App Services & Function Apps mit fehlendem HTTPS, TLS < 1.2, FTP oder Remote Debugging
+resources
+| where type =~ "microsoft.web/sites"
+| where properties.httpsOnly != true
+     or properties.siteConfig.minTlsVersion != "1.2"
+     or properties.siteConfig.ftpsState == "AllAllowed"
+     or properties.siteConfig.remoteDebuggingEnabled == true
+| project SubscriptionId=subscriptionId, ResourceGroup=resourceGroup, Name=name, Kind=kind,
+          HTTPSOnly=properties.httpsOnly,
+          MinTLS=properties.siteConfig.minTlsVersion,
+          FTPS=properties.siteConfig.ftpsState,
+          RemoteDebug=properties.siteConfig.remoteDebuggingEnabled
+
+// B6. Azure SQL Server ohne Entra-Only Auth oder mit öffentlichem Zugriff
+resources
+| where type =~ "microsoft.sql/servers"
+| project SubscriptionId=subscriptionId, ResourceGroup=resourceGroup, Name=name,
+          MinTLS=properties.minimalTlsVersion,
+          PublicNet=properties.publicNetworkAccess,
+          EntraAdmin=properties.administrators.login,
+          EntraOnly=properties.administrators.azureAdOnlyAuthentication
+
+// B7. Azure Container Registries mit aktivem Admin User oder Anonymous Pull
+resources
+| where type =~ "microsoft.containerregistry/registries"
+| where properties.adminUserEnabled == true or properties.anonymousPullEnabled == true
+| project SubscriptionId=subscriptionId, ResourceGroup=resourceGroup, Name=name,
+          AdminUser=properties.adminUserEnabled,
+          AnonymousPull=properties.anonymousPullEnabled,
+          PublicNet=properties.publicNetworkAccess
+
+// B8. AKS Cluster mit lokalen Accounts oder ohne Azure RBAC
+resources
+| where type =~ "microsoft.containerservice/managedclusters"
+| project SubscriptionId=subscriptionId, ResourceGroup=resourceGroup, Name=name,
+          K8sVersion=properties.kubernetesVersion,
+          DisableLocalAccounts=properties.disableLocalAccounts,
+          EntraRBAC=properties.aadProfile.enableAzureRbac,
+          PrivateCluster=properties.apiServerAccessProfile.enablePrivateCluster,
+          NetPolicy=properties.networkProfile.networkPolicy
